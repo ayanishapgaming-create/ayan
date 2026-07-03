@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "servermanagerplus",
+  "version": "${version}",
+  "name": "Server Manager +",
+  "description": "Enhanced multiplayer server list with pinning, search, and country flags.",
+  "authors": [
+    "Azor Studio"
+  ],
+  "contact": {
+    "homepage": "https://example.com",
+    "sources": "https://github.com/azorstudio/server-manager-plus"
+  },
+  "license": "MIT",
+  "icon": "assets/servermanagerplus/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.azorstudio.servermanagerplus.ServerManagerPlusClient"
+    ]
+  },
+  "mixins": [
+    "servermanagerplus.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "fabric-api": "*",
+    "minecraft": "~1.21"
+  }
+}
