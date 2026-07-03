@@ -1,73 +1,113 @@
-name: Java CI with Gradle (Minecraft Fabric Mod)
+name: Build & Release
 
 on:
   push:
-    branches: [ "main", "master", "dev" ]
-  pull_request:
-    branches: [ "main", "master" ]
-
-permissions:
-  contents: read
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
-    # Step 1: Clone the repository
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      # 1. Check out your code
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    # Step 2: Set up JDK 21 (Minecraft 1.21.1+ requires Java 21)
-    - name: Set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'temurin'
+      # 2. Java 21 — required for Minecraft 1.21.11
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
 
-    # Step 3: Bulletproof Guard - Automatically fetch wrapper if missing from git commit
-    - name: Ensure Gradle Wrapper Exists
-      run: |
-        if [ ! -f "gradlew" ]; then
-          echo "⚠️ WARNING: gradlew was not found in your repository checkout!"
-          echo "This usually happens if you forgot to run 'git add gradlew gradle/' before committing."
-          echo "Fetching the Gradle wrapper dynamically so the build doesn't crash..."
-          
-          mkdir -p gradle/wrapper
-          curl -sL https://raw.githubusercontent.com/gradle/gradle/master/gradlew -o gradlew
-          curl -sL https://raw.githubusercontent.com/gradle/gradle/master/gradlew.bat -o gradlew.bat
-          curl -sL https://raw.githubusercontent.com/gradle/gradle/master/gradle/wrapper/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar
-          
-          echo "distributionBase=GRADLE_USER_HOME" > gradle/wrapper/gradle-wrapper.properties
-          echo "distributionPath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
-          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-9.6.1-bin.zip" >> gradle/wrapper/gradle-wrapper.properties
-          echo "networkTimeout=10000" >> gradle/wrapper/gradle-wrapper.properties
-          echo "zipStoreBase=GRADLE_USER_HOME" >> gradle/wrapper/gradle-wrapper.properties
-          echo "zipStorePath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
-          
-          echo "✅ Dynamically recovered Gradle wrapper files successfully!"
-        fi
-        chmod +x gradlew
+      # 3. Bootstrap Gradle wrapper jar if it's missing or a stub
+      - name: Bootstrap Gradle wrapper
+        run: |
+          JAR="gradle/wrapper/gradle-wrapper.jar"
+          MIN_SIZE=50000
+          if [ ! -f "$JAR" ] || [ $(stat -c%s "$JAR") -lt $MIN_SIZE ]; then
+            echo "Downloading real gradle-wrapper.jar..."
+            curl -sL "https://github.com/gradle/gradle/raw/v8.10.0/gradle/wrapper/gradle-wrapper.jar" \
+              -o "$JAR"
+          else
+            echo "gradle-wrapper.jar looks fine ($(stat -c%s "$JAR") bytes)"
+          fi
 
-    # Step 4: Validate Gradle Wrapper to ensure wrapper integrity
-    - name: Validate Gradle Wrapper
-      uses: gradle/actions/wrapper-validation@v4
+      # 4. Cache Gradle downloads and Loom's mapped jars between runs
+      - name: Cache Gradle & Loom
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.gradle/loom-cache
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
-    # Step 5: Cache Gradle dependencies and optimize build speeds
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4
+      # 5. Make gradlew executable
+      - name: Grant execute permission to gradlew
+        run: chmod +x gradlew
 
-    # Step 6: Clear Loom cache (fixes stale/corrupted cache from cancelled runs)
-    - name: Clear Loom cache
-      run: rm -rf ~/.gradle/caches/fabric-loom
+      # 6. Build — Loom downloads MC + mappings, then compiles and remaps the jar
+      - name: Build with Gradle
+        run: ./gradlew build --no-daemon
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
 
-    # Step 7: Build the Minecraft mod (compiles, deobfuscates, remaps, and packages the mod jar)
-    - name: Build Mod with Gradle
-      run: ./gradlew build
+      # 7. Upload the mod jar as an artifact on every build (no tag needed)
+      - name: Upload mod jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-manager-plus-${{ github.sha }}
+          path: |
+            build/libs/*.jar
+            !build/libs/*-sources.jar
+          if-no-files-found: error
 
-    # Step 8: Archive the compiled mod .jar files so they can be downloaded from the run summary
-    - name: Upload Build Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: ServerManager-Fabric-1.21.1
-        path: build/libs/
+      # 8. On version tags (v1.0.0, v1.2.3 …) → publish a GitHub Release
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Server Manager+ ${{ github.ref_name }}"
+          body: |
+            ## Server Manager+ ${{ github.ref_name }}
+
+            > **Minecraft 1.21.11 · Fabric**
+            > by Azor Studio
+
+            ### Requirements
+            | Dependency | Version |
+            |---|---|
+            | Minecraft | 1.21.11 |
+            | Fabric Loader | ≥ 0.18.1 |
+            | Fabric API | 0.141.4+1.21.11 |
+
+            ### Installation
+            1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for Minecraft **1.21.11**
+            2. Download [Fabric API 0.141.4+1.21.11](https://modrinth.com/mod/fabric-api)
+            3. Place both `.jar` files in your `mods/` folder
+            4. Launch Minecraft with the Fabric profile
+
+            ### Features
+            - 🔍 Search bar on the server list and world select screen (by name or IP)
+            - 📌 Pin servers and worlds — pinned entries always appear at the top
+            - ★ Toggle to show only pinned servers/worlds
+            - 🌍 Country flag emoji on each server entry
+            - 🗨️ Hover the flag to see the full country name tooltip
+            - Right-click any server/world → Pin / Unpin context menu
+          files: |
+            build/libs/*.jar
+            !build/libs/*-sources.jar
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
