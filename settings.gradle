@@ -1,11 +1,11 @@
 pluginManagement {
     repositories {
         maven {
-            name = 'Fabric'
+            name = 'FabricMC'
             url = 'https://maven.fabricmc.net/'
         }
         gradlePluginPortal()
     }
 }
 
-rootProject.name = 'server-manager-plus'
+rootProject.name = "server-manager-plus"
