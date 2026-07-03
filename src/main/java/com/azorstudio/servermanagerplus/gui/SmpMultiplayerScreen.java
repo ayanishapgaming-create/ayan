@@ -13,7 +13,6 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.client.option.ServerList;
-import net.minecraft.client.util.math.Click;
 import net.minecraft.text.Text;
 
 import java.util.*;
@@ -108,19 +107,19 @@ public class SmpMultiplayerScreen extends MultiplayerScreen {
     // ─────────────────────────────────────────────────────────────────────────
 
     @Override
-    public boolean mouseClicked(Click click, boolean carried) {
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
         // Right-click (button == 1) on the list area → open pin context menu
-        if (click.button() == 1) {
+        if (button == 1) {
             ServerInfo selected = getSelectedServer();
             if (selected != null) {
                 MinecraftClient.getInstance().setScreen(
                     new PinContextMenu(this, selected.address, selected.name,
-                        true, (int) click.x(), (int) click.y())
+                        true, (int) mouseX, (int) mouseY)
                 );
                 return true;
             }
         }
-        return super.mouseClicked(click, carried);
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

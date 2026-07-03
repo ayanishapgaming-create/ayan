@@ -7,7 +7,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.util.math.Click;
 import net.minecraft.text.Text;
 
 /**
@@ -93,16 +92,14 @@ public class PinContextMenu extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean carried) {
-        // If right/left click is outside the menu, close
-        double mouseX = click.x();
-        double mouseY = click.y();
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        // If click is outside the menu, close
         if (mouseX < menuX || mouseX > menuX + MENU_W
                 || mouseY < menuY || mouseY > menuY + MENU_H) {
             close();
             return true;
         }
-        return super.mouseClicked(click, carried);
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
