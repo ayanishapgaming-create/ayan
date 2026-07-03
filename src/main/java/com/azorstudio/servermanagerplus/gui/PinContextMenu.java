@@ -7,6 +7,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.util.math.Click;
 import net.minecraft.text.Text;
 
 /**
@@ -77,8 +78,11 @@ public class PinContextMenu extends Screen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         // Draw background panel
         context.fill(menuX, menuY, menuX + MENU_W, menuY + MENU_H, BG_COLOR);
-        // Border
-        context.drawBorder(menuX, menuY, MENU_W, MENU_H, BORDER_COLOR);
+        // Draw border manually (top, bottom, left, right lines)
+        context.fill(menuX, menuY, menuX + MENU_W, menuY + 1, BORDER_COLOR);
+        context.fill(menuX, menuY + MENU_H - 1, menuX + MENU_W, menuY + MENU_H, BORDER_COLOR);
+        context.fill(menuX, menuY, menuX + 1, menuY + MENU_H, BORDER_COLOR);
+        context.fill(menuX + MENU_W - 1, menuY, menuX + MENU_W, menuY + MENU_H, BORDER_COLOR);
 
         // Title
         context.drawText(textRenderer,
@@ -89,14 +93,16 @@ public class PinContextMenu extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        // If click is outside the menu, close
+    public boolean mouseClicked(Click click, boolean carried) {
+        // If right/left click is outside the menu, close
+        double mouseX = click.x();
+        double mouseY = click.y();
         if (mouseX < menuX || mouseX > menuX + MENU_W
                 || mouseY < menuY || mouseY > menuY + MENU_H) {
             close();
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, carried);
     }
 
     @Override
@@ -104,7 +110,8 @@ public class PinContextMenu extends Screen {
         return false;
     }
 
-    private void close() {
+    @Override
+    public void close() {
         if (client != null) client.setScreen(parent);
     }
 }

@@ -4,10 +4,15 @@ import com.azorstudio.servermanagerplus.data.ServerDataManager;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Drawable;
+import net.minecraft.client.gui.Element;
+import net.minecraft.client.gui.Selectable;
 import net.minecraft.client.gui.screen.world.SelectWorldScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
+
+import java.lang.reflect.Method;
 
 /**
  * Utility class that injects a search bar + pin controls into the
@@ -38,14 +43,14 @@ public class EnhancedWorldScreen {
             searchWidth, 16,
             Text.translatable("servermanagerplus.search.worlds")
         );
-        searchField.setPlaceholderText(Text.literal("🔍 Search worlds by name..."));
+        searchField.setSuggestion("🔍 Search worlds by name...");
         searchField.setMaxLength(128);
         searchField.setText(worldSearchQuery);
         searchField.setChangedListener(query -> {
             worldSearchQuery = query.toLowerCase();
         });
 
-        screen.addDrawableChild(searchField);
+        addChildToScreen(screen, searchField);
 
         // ── Pinned toggle button ───────────────────────────────────────────────
         ButtonWidget pinnedButton = ButtonWidget.builder(
@@ -56,13 +61,33 @@ public class EnhancedWorldScreen {
             }
         ).dimensions(screenWidth / 2 + 4, searchY, searchWidth, 16).build();
 
-        screen.addDrawableChild(pinnedButton);
+        addChildToScreen(screen, pinnedButton);
     }
 
     private static Text getPinnedButtonText() {
         return showPinnedWorldsOnly
             ? Text.literal("★ Pinned Worlds")
             : Text.literal("☆ All Worlds");
+    }
+
+    /**
+     * Reflectively invokes the protected Screen#addDrawableChild so that
+     * this external utility class can add widgets to a Screen subclass.
+     */
+    @SuppressWarnings("unchecked")
+    private static <T extends Element & Drawable & Selectable> void addChildToScreen(
+            SelectWorldScreen screen, T child) {
+        try {
+            for (Method m : net.minecraft.client.gui.screen.Screen.class.getDeclaredMethods()) {
+                if (m.getName().equals("addDrawableChild")) {
+                    m.setAccessible(true);
+                    m.invoke(screen, child);
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**

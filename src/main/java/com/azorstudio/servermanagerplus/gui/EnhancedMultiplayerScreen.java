@@ -4,13 +4,16 @@ import com.azorstudio.servermanagerplus.data.ServerDataManager;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Element;
+import net.minecraft.client.gui.Drawable;
+import net.minecraft.client.gui.Selectable;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
-import net.minecraft.client.gui.screen.multiplayer.MultiplayerServerListWidget;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.Text;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,14 +55,15 @@ public class EnhancedMultiplayerScreen {
             searchWidth, 16,
             Text.translatable("servermanagerplus.search.servers")
         );
-        searchField.setPlaceholderText(Text.literal("🔍 Search by name or IP..."));
+        // setSuggestion shows grey hint text when the field is empty
+        searchField.setSuggestion("🔍 Search by name or IP...");
         searchField.setMaxLength(128);
         searchField.setText(serverSearchQuery);
         searchField.setChangedListener(query -> {
             serverSearchQuery = query.toLowerCase();
         });
 
-        screen.addDrawableChild(searchField);
+        addChildToScreen(screen, searchField);
 
         // ── Pinned toggle button ───────────────────────────────────────────────
         ButtonWidget pinnedButton = ButtonWidget.builder(
@@ -70,13 +74,41 @@ public class EnhancedMultiplayerScreen {
             }
         ).dimensions(screenWidth / 2 + 4, searchY, searchWidth, 16).build();
 
-        screen.addDrawableChild(pinnedButton);
+        addChildToScreen(screen, pinnedButton);
     }
 
     private static Text getPinnedButtonText() {
         return showPinnedOnly
             ? Text.literal("★ Pinned Only")
             : Text.literal("☆ All Servers");
+    }
+
+    /**
+     * Reflectively invokes the protected Screen#addDrawableChild so that
+     * this external utility class can add widgets to a Screen subclass.
+     */
+    @SuppressWarnings("unchecked")
+    private static <T extends Element & Drawable & Selectable> void addChildToScreen(
+            MultiplayerScreen screen, T child) {
+        try {
+            Method m = net.minecraft.client.gui.screen.Screen.class
+                .getDeclaredMethod("addDrawableChild", Element.class);
+            m.setAccessible(true);
+            m.invoke(screen, child);
+        } catch (Exception e) {
+            // Fallback: try with the concrete type
+            try {
+                for (Method m : net.minecraft.client.gui.screen.Screen.class.getDeclaredMethods()) {
+                    if (m.getName().equals("addDrawableChild")) {
+                        m.setAccessible(true);
+                        m.invoke(screen, child);
+                        return;
+                    }
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
     }
 
     /**

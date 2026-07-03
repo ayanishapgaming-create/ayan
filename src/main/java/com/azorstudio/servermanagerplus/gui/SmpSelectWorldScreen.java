@@ -9,6 +9,7 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.world.SelectWorldScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.util.math.Click;
 import net.minecraft.text.Text;
 import net.minecraft.world.level.storage.LevelSummary;
 
@@ -49,7 +50,7 @@ public class SmpSelectWorldScreen extends SelectWorldScreen {
             fieldW, 18,
             Text.translatable("servermanagerplus.search.worlds")
         );
-        searchField.setPlaceholderText(Text.literal("🔍  Search worlds by name..."));
+        searchField.setSuggestion("🔍  Search worlds by name...");
         searchField.setMaxLength(128);
         searchField.setText(searchQuery);
         searchField.setChangedListener(q -> {
@@ -75,8 +76,8 @@ public class SmpSelectWorldScreen extends SelectWorldScreen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 1) {
+    public boolean mouseClicked(Click click, boolean carried) {
+        if (click.button() == 1) {
             // Right-click → try to get selected world
             LevelSummary summary = getSelectedWorld();
             if (summary != null) {
@@ -85,12 +86,12 @@ public class SmpSelectWorldScreen extends SelectWorldScreen {
                         summary.getName(),
                         summary.getDisplayName(),
                         false,
-                        (int) mouseX, (int) mouseY)
+                        (int) click.x(), (int) click.y())
                 );
                 return true;
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, carried);
     }
 
     /**

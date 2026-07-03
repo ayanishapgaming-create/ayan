@@ -13,6 +13,7 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.client.option.ServerList;
+import net.minecraft.client.util.math.Click;
 import net.minecraft.text.Text;
 
 import java.util.*;
@@ -64,7 +65,7 @@ public class SmpMultiplayerScreen extends MultiplayerScreen {
             fieldW, 18,
             Text.translatable("servermanagerplus.search.servers")
         );
-        searchField.setPlaceholderText(Text.literal("🔍  Search by name or IP..."));
+        searchField.setSuggestion("🔍  Search by name or IP...");
         searchField.setMaxLength(128);
         searchField.setText(searchQuery);
         searchField.setChangedListener(q -> {
@@ -99,22 +100,7 @@ public class SmpMultiplayerScreen extends MultiplayerScreen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
-
-        // Overlay flag + pin decorations on each visible server entry
-        MultiplayerServerListWidget widget = getServerListWidget();
-        if (widget == null) return;
-
-        List<ServerInfo> visible = getFilteredServers();
-        ServerDataManager dm = ServerDataManager.getInstance();
-
-        int entryY = widget.getY() + 4;
-        int entryH = 36; // vanilla server entry height
-
-        for (int i = widget.children().size() - 1; i >= 0; i--) {
-            // We draw decorations per entry using the widget's scroll offset
-        }
         // Note: flag drawing per-entry is done in ServerEntryMixin for correctness.
-        // This method handles any screen-level overlays.
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -122,19 +108,19 @@ public class SmpMultiplayerScreen extends MultiplayerScreen {
     // ─────────────────────────────────────────────────────────────────────────
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(Click click, boolean carried) {
         // Right-click (button == 1) on the list area → open pin context menu
-        if (button == 1) {
+        if (click.button() == 1) {
             ServerInfo selected = getSelectedServer();
             if (selected != null) {
                 MinecraftClient.getInstance().setScreen(
                     new PinContextMenu(this, selected.address, selected.name,
-                        true, (int)mouseX, (int)mouseY)
+                        true, (int) click.x(), (int) click.y())
                 );
                 return true;
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, carried);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -196,15 +182,7 @@ public class SmpMultiplayerScreen extends MultiplayerScreen {
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** Reflection-free accessor (vanilla exposes this in 1.21.1 via serverListWidget field) */
-    private MultiplayerServerListWidget getServerListWidget() {
-        // The field is protected in MultiplayerScreen; accessed via mixin accessor
-        // For now we return null and rely on the per-entry mixin for rendering
-        return null;
-    }
-
     private ServerInfo getSelectedServer() {
-        // Accessed via the list widget's getSelectedOrNull
         try {
             var field = MultiplayerScreen.class.getDeclaredField("serverListWidget");
             field.setAccessible(true);
