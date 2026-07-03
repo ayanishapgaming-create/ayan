@@ -20,6 +20,12 @@ import java.util.Optional;
  * Injects into each ServerEntry render call to:
  * 1. Draw a pin icon (📌) for pinned servers
  * 2. Draw a country flag emoji with tooltip on hover
+ *
+ * In 1.21.11, MultiplayerServerListWidget.ServerEntry#render signature is:
+ *   render(DrawContext context, int index, int y, boolean hovered, float tickDelta)
+ *
+ * The old params x, entryWidth, entryHeight, mouseX, mouseY were removed;
+ * mouse position is now obtained via MinecraftClient.getInstance().mouse.
  */
 @Mixin(MultiplayerServerListWidget.ServerEntry.class)
 public abstract class ServerEntryMixin {
@@ -28,49 +34,59 @@ public abstract class ServerEntryMixin {
     @Final
     private ServerInfo server;
 
-    /**
-     * After vanilla renders the server entry, we draw our overlays.
-     */
     @Inject(
         method = "render",
         at = @At("RETURN")
     )
-    private void onRender(DrawContext context, int index, int y, int x,
-                          int entryWidth, int entryHeight,
-                          int mouseX, int mouseY,
+    private void onRender(DrawContext context, int index, int y,
                           boolean hovered, float tickDelta,
                           CallbackInfo ci) {
 
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.textRenderer == null) return;
 
+        // In 1.21.11 we no longer receive x/entryWidth/mouseX directly.
+        // Obtain mouse position from the Mouse helper instead.
+        double mouseX = client.mouse.getX() * client.getWindow().getScaleFactor()
+                        / client.getWindow().getWidth()
+                        * client.getWindow().getScaledWidth();
+        double mouseY = client.mouse.getY() * client.getWindow().getScaleFactor()
+                        / client.getWindow().getHeight()
+                        * client.getWindow().getScaledHeight();
+
+        // Standard layout constants used by MultiplayerServerListWidget
+        // Entry left edge is at x=32 (icon offset), entries are 36px tall
+        int entryX = 32;
+        int entryHeight = 36;
+        // Width available for text is screenWidth - 32 - scrollbar (6) - padding (2)
+        int entryWidth = client.currentScreen != null
+            ? client.currentScreen.width - 32 - 6 - 2
+            : 200;
+
         ServerDataManager dm = ServerDataManager.getInstance();
         String address = server.address;
 
-        // ── Pin indicator ───────────────────────────────────────────────────────
+        // ── Pin indicator ─────────────────────────────────────────────────────
         if (dm.isServerPinned(address)) {
-            // Draw pin emoji in top-left corner of entry
             context.drawText(client.textRenderer,
                 Text.literal("📌"),
-                x + 1, y + 1,
-                0xFFD700, // gold color
+                entryX + 1, y + 1,
+                0xFFD700,   // gold
                 true);
         }
 
-        // ── Country flag ────────────────────────────────────────────────────────
+        // ── Country flag ──────────────────────────────────────────────────────
         Optional<String> countryCode = dm.getCountryCode(address);
 
         if (countryCode.isEmpty()) {
-            // Trigger async lookup; will be available on next render
-            CountryLookupUtil.lookupAsync(address, code -> {
-                // Cached automatically by setCountryCode; next render will display it
-            });
+            // Kick off async lookup; result is cached for next frame
+            CountryLookupUtil.lookupAsync(address, code -> { /* cached automatically */ });
         } else {
             String code = countryCode.get();
             String flagEmoji = CountryLookupUtil.countryCodeToFlag(code);
 
-            // Draw flag at right side of entry (before ping indicator)
-            int flagX = x + entryWidth - 85;
+            // Position: right side of entry, vertically centred
+            int flagX = entryX + entryWidth - 85;
             int flagY = y + (entryHeight / 2) - 4;
 
             context.drawText(client.textRenderer,
@@ -79,7 +95,7 @@ public abstract class ServerEntryMixin {
                 0xFFFFFF,
                 true);
 
-            // ── Tooltip on hover over flag area ─────────────────────────────────
+            // Tooltip when mouse hovers the flag glyph
             boolean overFlag = mouseX >= flagX && mouseX <= flagX + 14
                     && mouseY >= flagY && mouseY <= flagY + 10;
 
@@ -88,7 +104,7 @@ public abstract class ServerEntryMixin {
                 context.drawTooltip(
                     client.textRenderer,
                     Text.literal(flagEmoji + " " + countryName),
-                    mouseX, mouseY
+                    (int) mouseX, (int) mouseY
                 );
             }
         }
