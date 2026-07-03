@@ -16,37 +16,34 @@ jobs:
       contents: write
 
     steps:
-      # 1. Check out your code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Java 21 — required for Minecraft 1.21.11
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
-      # 3. Bootstrap Gradle wrapper jar if it's a stub
+      # Bootstrap the gradle-wrapper.jar if it's a stub (< 50 KB)
       - name: Bootstrap Gradle wrapper jar
         run: |
           JAR="gradle/wrapper/gradle-wrapper.jar"
           MIN_SIZE=50000
-          if [ ! -f "$JAR" ] || [ $(stat -c%s "$JAR") -lt $MIN_SIZE ]; then
-            echo "Downloading gradle-wrapper.jar for Gradle 8.14..."
+          ACTUAL=$(stat -c%s "$JAR" 2>/dev/null || echo 0)
+          if [ "$ACTUAL" -lt "$MIN_SIZE" ]; then
+            echo "Stub detected ($ACTUAL bytes). Downloading real jar..."
             curl -fsSL \
-              "https://raw.githubusercontent.com/gradle/gradle/v8.14.0/subprojects/wrapper/src/main/groovy/../../../wrapper-jar/wrapper-jar/build/libs/gradle-wrapper.jar" \
-              -o "$JAR" 2>/dev/null || \
+              "https://github.com/gradle/gradle/raw/v9.4.0/gradle/wrapper/gradle-wrapper.jar" \
+              -o "$JAR" || \
             curl -fsSL \
-              "https://github.com/gradle/gradle/raw/refs/tags/v8.14.0/gradle/wrapper/gradle-wrapper.jar" \
-              -o "$JAR" 2>/dev/null || \
-            gradle wrapper --gradle-version=8.14 2>/dev/null || true
-            echo "JAR size: $(stat -c%s "$JAR" 2>/dev/null || echo 'missing') bytes"
+              "https://raw.githubusercontent.com/gradle/gradle/v9.4.0/gradle/wrapper/gradle-wrapper.jar" \
+              -o "$JAR"
+            echo "Downloaded: $(stat -c%s "$JAR") bytes"
           else
-            echo "gradle-wrapper.jar OK ($(stat -c%s "$JAR") bytes)"
+            echo "Wrapper jar OK ($ACTUAL bytes)"
           fi
 
-      # 4. Cache Gradle and Loom files between runs
       - name: Cache Gradle & Loom
         uses: actions/cache@v4
         with:
@@ -58,15 +55,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # 5. Make gradlew executable
-      - name: Grant execute permission to gradlew
+      - name: Make gradlew executable
         run: chmod +x gradlew
 
-      # 6. Build — Loom downloads MC + mappings, then compiles and remaps the jar
       - name: Build with Gradle
         run: ./gradlew build --no-daemon
 
-      # 7. Upload the mod jar as a downloadable artifact on every build
       - name: Upload mod jar
         uses: actions/upload-artifact@v4
         with:
@@ -76,7 +70,6 @@ jobs:
             !build/libs/*-sources.jar
           if-no-files-found: error
 
-      # 8. On version tags → publish a GitHub Release with the jar attached
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
@@ -85,7 +78,7 @@ jobs:
           body: |
             ## Server Manager+ ${{ github.ref_name }}
 
-            > **Minecraft 1.21.11 · Fabric**
+            > **Minecraft 1.21.11 · Fabric**  
             > by Azor Studio
 
             ### Requirements
@@ -97,16 +90,15 @@ jobs:
 
             ### Installation
             1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for Minecraft **1.21.11**
-            2. Download [Fabric API 0.141.4+1.21.11](https://modrinth.com/mod/fabric-api)
+            2. Download [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=1.21.11)
             3. Place both `.jar` files in your `mods/` folder
-            4. Launch Minecraft with the Fabric profile
 
             ### Features
-            - 🔍 Search bar on the server list and world select screen (by name or IP)
-            - 📌 Pin servers and worlds — pinned entries always appear at the top
-            - ★ Toggle to show only pinned servers/worlds
+            - 🔍 Search bar on server list and world select (by name or IP)
+            - 📌 Pin servers and worlds — pinned entries always appear first
+            - ★ Toggle to show only pinned entries
             - 🌍 Country flag emoji on each server entry
-            - 🗨️ Hover the flag to see the full country name tooltip
+            - 🗨️ Hover the flag for the full country name tooltip
             - Right-click any server/world → Pin / Unpin context menu
           files: |
             build/libs/*.jar
