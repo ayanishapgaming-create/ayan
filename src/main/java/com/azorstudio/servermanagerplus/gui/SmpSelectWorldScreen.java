@@ -4,6 +4,8 @@ import com.azorstudio.servermanagerplus.data.ServerDataManager;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
+
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.world.SelectWorldScreen;
@@ -75,8 +77,8 @@ public class SmpSelectWorldScreen extends SelectWorldScreen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 1) {
+    public boolean mouseClicked(Click click, boolean doubled) {
+        if (click.button() == 1) {
             // Right-click → try to get selected world
             LevelSummary summary = getSelectedWorld();
             if (summary != null) {
@@ -85,12 +87,12 @@ public class SmpSelectWorldScreen extends SelectWorldScreen {
                         summary.getName(),
                         summary.getDisplayName(),
                         false,
-                        (int) mouseX, (int) mouseY)
+                        (int) click.x(), (int) click.y())
                 );
                 return true;
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, doubled);
     }
 
     /**

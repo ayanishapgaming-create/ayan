@@ -5,6 +5,8 @@ import com.azorstudio.servermanagerplus.util.CountryLookupUtil;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
+
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
@@ -107,19 +109,19 @@ public class SmpMultiplayerScreen extends MultiplayerScreen {
     // ─────────────────────────────────────────────────────────────────────────
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(Click click, boolean doubled) {
         // Right-click (button == 1) on the list area → open pin context menu
-        if (button == 1) {
+        if (click.button() == 1) {
             ServerInfo selected = getSelectedServer();
             if (selected != null) {
                 MinecraftClient.getInstance().setScreen(
                     new PinContextMenu(this, selected.address, selected.name,
-                        true, (int) mouseX, (int) mouseY)
+                        true, (int) click.x(), (int) click.y())
                 );
                 return true;
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, doubled);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
