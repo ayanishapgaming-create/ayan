@@ -25,7 +25,7 @@ public abstract class ServerEntryMixin {
 
     @Shadow @Final private ServerInfo server;
 
-    // ── Draw pin icon + country flag ─────────────────────────────────────────
+    // ── Draw pin icon + country flag on each entry ────────────────────────────
     @Inject(method = "render", at = @At("RETURN"))
     private void onRender(DrawContext context, int index, int y,
                           boolean hovered, float tickDelta, CallbackInfo ci) {
@@ -33,41 +33,36 @@ public abstract class ServerEntryMixin {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.textRenderer == null) return;
 
-        // Derive mouse position from raw mouse coords → GUI coords
-        double scaleX = client.getWindow().getScaledWidth() / (double) client.getWindow().getWidth();
+        double scaleX = client.getWindow().getScaledWidth()  / (double) client.getWindow().getWidth();
         double scaleY = client.getWindow().getScaledHeight() / (double) client.getWindow().getHeight();
         int mouseX = (int)(client.mouse.getX() * scaleX);
         int mouseY = (int)(client.mouse.getY() * scaleY);
 
-        int entryX    = 32;
-        int entryH    = 36;
-        int entryW    = client.currentScreen != null ? client.currentScreen.width - 40 : 200;
+        int entryX = 32;
+        int entryH = 36;
+        int entryW = client.currentScreen != null ? client.currentScreen.width - 40 : 200;
 
         ServerDataManager dm = ServerDataManager.getInstance();
         String address = server.address;
 
-        // ── Pin icon ─────────────────────────────────────────────────────────
+        // Pin icon
         if (dm.isServerPinned(address)) {
             context.drawText(client.textRenderer,
-                Text.literal("📌"),
-                entryX + 2, y + 2, 0xFFD700, true);
+                Text.literal("📌"), entryX + 2, y + 2, 0xFFD700, true);
         }
 
-        // ── Country flag ─────────────────────────────────────────────────────
+        // Country flag
         Optional<String> countryCode = dm.getCountryCode(address);
-
         if (countryCode.isEmpty()) {
-            CountryLookupUtil.lookupAsync(address, code -> { /* cached; shows next frame */ });
+            CountryLookupUtil.lookupAsync(address, code -> {});
         } else {
-            String code      = countryCode.get();
-            String flag      = CountryLookupUtil.countryCodeToFlag(code);
-            int flagX        = entryX + entryW - 24;
-            int flagY        = y + (entryH / 2) - 4;
+            String code  = countryCode.get();
+            String flag  = CountryLookupUtil.countryCodeToFlag(code);
+            int flagX    = entryX + entryW - 24;
+            int flagY    = y + (entryH / 2) - 4;
 
-            context.drawText(client.textRenderer, Text.literal(flag), flagX, flagY,
-                0xFFFFFF, true);
+            context.drawText(client.textRenderer, Text.literal(flag), flagX, flagY, 0xFFFFFF, true);
 
-            // Tooltip on hover
             if (hovered && mouseX >= flagX && mouseX <= flagX + 16
                         && mouseY >= flagY && mouseY <= flagY + 10) {
                 context.drawTooltip(client.textRenderer,
@@ -78,18 +73,18 @@ public abstract class ServerEntryMixin {
     }
 
     // ── Right-click → Pin/Unpin context menu ─────────────────────────────────
+    // In 1.21.11 the signature is mouseClicked(Click, boolean)
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
-    private void onMouseClicked(double mouseX, double mouseY, int button,
+    private void onMouseClicked(Click click, boolean doubled,
                                 CallbackInfoReturnable<Boolean> cir) {
-        if (button == 1) { // right-click
+        if (click.button() == 1) { // right mouse button
             MinecraftClient client = MinecraftClient.getInstance();
             if (client != null) {
                 client.setScreen(new PinContextMenu(
                     client.currentScreen,
-                    server.address,
-                    server.name,
+                    server.address, server.name,
                     true,
-                    (int) mouseX, (int) mouseY
+                    (int) click.x(), (int) click.y()
                 ));
             }
             cir.setReturnValue(true);

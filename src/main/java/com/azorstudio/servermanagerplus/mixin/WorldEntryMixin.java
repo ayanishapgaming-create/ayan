@@ -3,6 +3,7 @@ package com.azorstudio.servermanagerplus.mixin;
 import com.azorstudio.servermanagerplus.data.ServerDataManager;
 import com.azorstudio.servermanagerplus.gui.PinContextMenu;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.world.WorldListWidget;
 import net.minecraft.text.Text;
@@ -29,24 +30,23 @@ public abstract class WorldEntryMixin {
 
         if (ServerDataManager.getInstance().isWorldPinned(level.getName())) {
             context.drawText(client.textRenderer,
-                Text.literal("📌"),
-                34, y + 2, 0xFFD700, true);
+                Text.literal("📌"), 34, y + 2, 0xFFD700, true);
         }
     }
 
     // ── Right-click → Pin/Unpin context menu ─────────────────────────────────
+    // In 1.21.11 the signature is mouseClicked(Click, boolean)
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
-    private void onMouseClicked(double mouseX, double mouseY, int button,
+    private void onMouseClicked(Click click, boolean doubled,
                                 CallbackInfoReturnable<Boolean> cir) {
-        if (button == 1 && level != null) {
+        if (click.button() == 1 && level != null) {
             MinecraftClient client = MinecraftClient.getInstance();
             if (client != null) {
                 client.setScreen(new PinContextMenu(
                     client.currentScreen,
-                    level.getName(),
-                    level.getDisplayName(),
+                    level.getName(), level.getDisplayName(),
                     false,
-                    (int) mouseX, (int) mouseY
+                    (int) click.x(), (int) click.y()
                 ));
             }
             cir.setReturnValue(true);
