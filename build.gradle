@@ -1,6 +1,7 @@
 plugins {
-    // Loom 1.12 is the last version supporting Gradle 8.x and fully supports 1.21.11
-    id 'net.fabricmc.fabric-loom-remap' version '1.12.12'
+    // Loom 1.12 = last version supporting Gradle 8.x
+    // Uses the classic "fabric-loom" plugin ID (not "fabric-loom-remap" which is 1.14+)
+    id 'fabric-loom' version '1.12.12'
     id 'maven-publish'
 }
 
@@ -21,7 +22,6 @@ repositories {
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    // 1.21.11 still uses Yarn mappings (last obfuscated MC version)
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
