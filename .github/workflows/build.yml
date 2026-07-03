@@ -34,7 +34,7 @@ jobs:
           MIN_SIZE=50000
           if [ ! -f "$JAR" ] || [ $(stat -c%s "$JAR") -lt $MIN_SIZE ]; then
             echo "Downloading real gradle-wrapper.jar..."
-            curl -sL "https://github.com/gradle/gradle/raw/v8.10.0/gradle/wrapper/gradle-wrapper.jar" \
+            curl -sL "https://github.com/gradle/gradle/raw/v8.14.0/gradle/wrapper/gradle-wrapper.jar" \
               -o "$JAR"
           else
             echo "gradle-wrapper.jar looks fine ($(stat -c%s "$JAR") bytes)"
