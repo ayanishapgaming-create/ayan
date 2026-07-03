@@ -27,20 +27,26 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      # 3. Bootstrap Gradle wrapper jar if it's missing or a stub
-      - name: Bootstrap Gradle wrapper
+      # 3. Bootstrap Gradle wrapper jar if it's a stub
+      - name: Bootstrap Gradle wrapper jar
         run: |
           JAR="gradle/wrapper/gradle-wrapper.jar"
           MIN_SIZE=50000
           if [ ! -f "$JAR" ] || [ $(stat -c%s "$JAR") -lt $MIN_SIZE ]; then
-            echo "Downloading real gradle-wrapper.jar..."
-            curl -sL "https://github.com/gradle/gradle/raw/v8.14.0/gradle/wrapper/gradle-wrapper.jar" \
-              -o "$JAR"
+            echo "Downloading gradle-wrapper.jar for Gradle 8.14..."
+            curl -fsSL \
+              "https://raw.githubusercontent.com/gradle/gradle/v8.14.0/subprojects/wrapper/src/main/groovy/../../../wrapper-jar/wrapper-jar/build/libs/gradle-wrapper.jar" \
+              -o "$JAR" 2>/dev/null || \
+            curl -fsSL \
+              "https://github.com/gradle/gradle/raw/refs/tags/v8.14.0/gradle/wrapper/gradle-wrapper.jar" \
+              -o "$JAR" 2>/dev/null || \
+            gradle wrapper --gradle-version=8.14 2>/dev/null || true
+            echo "JAR size: $(stat -c%s "$JAR" 2>/dev/null || echo 'missing') bytes"
           else
-            echo "gradle-wrapper.jar looks fine ($(stat -c%s "$JAR") bytes)"
+            echo "gradle-wrapper.jar OK ($(stat -c%s "$JAR") bytes)"
           fi
 
-      # 4. Cache Gradle downloads and Loom's mapped jars between runs
+      # 4. Cache Gradle and Loom files between runs
       - name: Cache Gradle & Loom
         uses: actions/cache@v4
         with:
@@ -60,7 +66,7 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build --no-daemon
 
-      # 7. Upload the mod jar as an artifact on every build (no tag needed)
+      # 7. Upload the mod jar as a downloadable artifact on every build
       - name: Upload mod jar
         uses: actions/upload-artifact@v4
         with:
@@ -70,7 +76,7 @@ jobs:
             !build/libs/*-sources.jar
           if-no-files-found: error
 
-      # 8. On version tags (v1.0.0, v1.2.3 …) → publish a GitHub Release
+      # 8. On version tags → publish a GitHub Release with the jar attached
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
