@@ -1,35 +1,34 @@
 package com.azorstudio.servermanagerplus.mixin;
 
-import com.azorstudio.servermanagerplus.data.ServerDataManager;
 import com.azorstudio.servermanagerplus.gui.EnhancedMultiplayerScreen;
-import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.screen.multiplayer.MultiplayerServerListWidget;
+import net.minecraft.client.network.ServerInfo;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Replaces the vanilla MultiplayerScreen with our enhanced version
- * by redirecting the constructor init call.
- */
 @Mixin(MultiplayerScreen.class)
-public abstract class MultiplayerScreenMixin extends Screen {
+public abstract class MultiplayerScreenMixin {
 
-    protected MultiplayerScreenMixin(Text title) {
-        super(title);
-    }
+    @Shadow
+    protected MultiplayerServerListWidget serverListWidget;
 
-    /**
-     * After the screen initializes, we inject our UI additions.
-     * We can't fully replace the screen here, so we delegate via the EnhancedMultiplayerScreen
-     * companion class which is opened by our mixin on the parent screen's button press.
-     */
+    // Inject search bar + pinned button after vanilla init
     @Inject(method = "init", at = @At("RETURN"))
     private void onInit(CallbackInfo ci) {
-        // Mark that mod is active; actual UI injection is done via ServerListWidgetMixin
-        // and the search/pin overlays added by EnhancedMultiplayerScreen
-        EnhancedMultiplayerScreen.injectIntoMultiplayerScreen((MultiplayerScreen)(Object)this);
+        EnhancedMultiplayerScreen.injectIntoMultiplayerScreen(
+            (MultiplayerScreen)(Object)this,
+            serverListWidget
+        );
+    }
+
+    // When the screen closes, clear the search/filter state
+    @Inject(method = "removed", at = @At("HEAD"))
+    private void onRemoved(CallbackInfo ci) {
+        EnhancedMultiplayerScreen.serverSearchQuery = "";
+        EnhancedMultiplayerScreen.showPinnedOnly = false;
     }
 }
